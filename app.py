@@ -49,17 +49,13 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
     
-    /* Stitch Typography */
-    .font-mono-telemetry {
-        font-family: 'JetBrains Mono', monospace !important;
-    }
-    
-    /* Header Bar */
+    /* Top Mission Header Bar */
     .stitch-header {
         background-color: #0C141E;
-        border-bottom: 1px solid #1E2B3A;
-        padding: 10px 24px;
-        margin: -4rem -4rem 1.5rem -4rem;
+        border: 1px solid #1E2B3A;
+        border-radius: 6px;
+        padding: 12px 20px;
+        margin: 0 0 1.25rem 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -73,12 +69,12 @@ st.markdown("""
     .stitch-badge-pill {
         background: #141C26;
         border: 1px solid #1E2B3A;
-        padding: 4px 12px;
+        padding: 4px 10px;
         border-radius: 4px;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 12px;
+        font-size: 11px;
     }
     .stitch-pulse-dot {
         width: 8px;
@@ -89,47 +85,18 @@ st.markdown("""
         display: inline-block;
     }
     
-    /* Tactical Canvas Reticle */
-    .reticle-box {
-        position: relative;
-        background: #070D14;
-        border: 1px solid #1E2B3A;
-        border-radius: 4px;
-        overflow: hidden;
-    }
-    .reticle-corner-tl {
-        position: absolute;
-        top: 8px;
-        left: 12px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
-        letter-spacing: 0.1em;
-        color: #859395;
-        z-index: 10;
-        pointer-events: none;
-    }
-    .reticle-corner-tr {
-        position: absolute;
-        top: 8px;
-        right: 12px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
-        color: #3CDAE7;
-        z-index: 10;
-        pointer-events: none;
-    }
-    
     /* Tactical Ticker Ribbon */
     .tactical-ribbon {
         background: #141C26;
         border-top: 1px solid #1E2B3A;
-        padding: 6px 16px;
+        padding: 8px 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         font-size: 11px;
         color: #BBC9CB;
         font-family: 'JetBrains Mono', monospace;
+        border-radius: 0 0 4px 4px;
     }
     
     /* Metric & Result Cards from Stitch */
@@ -284,7 +251,6 @@ st.markdown(f"""
 # 4. STITCH SIDEBAR (ROUTE SETTINGS & CONTROLS)
 # -----------------------------------------------------------------------------
 with st.sidebar:
-    # Sidebar Brand
     st.markdown("""
     <div style="padding-bottom: 12px; border-bottom: 1px solid #1E2B3A; margin-bottom: 16px;">
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: #3CDAE7; letter-spacing: -0.02em;">
@@ -389,17 +355,30 @@ d_haz = haz_res["distance"]
 c_short = short_res["traversal_cost"]
 c_haz = haz_res["traversal_cost"]
 
+# Extract cell attributes along paths with complete safety
+s_slopes = [float(terrain["slope"][r, c]) for r, c in short_res["path"]] if short_res["success"] else []
+h_slopes = [float(terrain["slope"][r, c]) for r, c in haz_res["path"]] if haz_res["success"] else []
+s_costs = [float(cost_grid[r, c]) for r, c in short_res["path"]] if short_res["success"] else []
+h_costs = [float(cost_grid[r, c]) for r, c in haz_res["path"]] if haz_res["success"] else []
+
 if short_res["success"] and haz_res["success"]:
     overhead_pct = (100.0 * (d_haz - d_short) / d_short) if d_short > 0 else 0.0
     cost_reduction_pct = (100.0 * (c_short - c_haz) / c_short) if c_short > 0 else 0.0
-    # Approximate travel time in minutes assuming rover velocity 3.8 km/h on flat, reduced on slopes
-    t_short_min = max(int(round((d_short / 1000.0) / 3.8 * 60.0)), 1)
-    t_haz_min = max(int(round((d_haz / 1000.0) / 4.2 * 60.0)), 1)
+    t_short_str = f"{max(int(round((d_short / 1000.0) / 3.8 * 60.0)), 1)} min"
+    t_haz_str = f"{max(int(round((d_haz / 1000.0) / 4.2 * 60.0)), 1)} min"
+    d_short_str = f"{d_short / 1000.0:.2f} km"
+    d_haz_str = f"{d_haz / 1000.0:.2f} km"
+    d_delta_str = f"(+{(d_haz - d_short) / 1000.0:+.2f} km)"
+    cost_red_str = f"-{cost_reduction_pct:.1f}%"
 else:
     overhead_pct = 0.0
     cost_reduction_pct = 0.0
-    t_short_min = 0
-    t_haz_min = 0
+    t_short_str = "N/A"
+    t_haz_str = "N/A"
+    d_short_str = "Blocked"
+    d_haz_str = "Blocked"
+    d_delta_str = "N/A"
+    cost_red_str = "N/A"
 
 
 # -----------------------------------------------------------------------------
@@ -408,15 +387,15 @@ else:
 col_map, col_controls = st.columns([2.2, 1.0])
 
 with col_map:
-    # Reticle Box container
+    # Reticle Box Header
     st.markdown("""
-    <div style="position: relative; margin-bottom: 2px;">
-        <span class="reticle-corner-tl">+ TAC-MAP // SEC-09-POLAR</span>
-        <span class="reticle-corner-tr">+ LUNAR-SOUTH-POLE</span>
+    <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 4px;">
+        <span style="color: #859395;">+ TAC-MAP // SEC-09-POLAR</span>
+        <span style="color: #3CDAE7;">+ LUNAR-SOUTH-POLE</span>
     </div>
     """, unsafe_allow_html=True)
 
-    # Select layer matrix and colorscale matching Stitch aesthetic
+    # Layer matrix and colorscale
     if active_layer == "Elevation (m)":
         heat_data = terrain["elevation"]
         colorscale = "Viridis"
@@ -467,7 +446,7 @@ with col_map:
             hoverinfo="skip"
         ))
 
-    # 3. Shortest Route Overlay (Dashed Amber-Cyan line)
+    # 3. Shortest Route Overlay (Dashed Cyan line)
     if short_res["success"] and len(short_res["path"]) > 1:
         s_path = short_res["path"]
         fig.add_trace(go.Scatter(
@@ -491,7 +470,7 @@ with col_map:
             hovertemplate="Hazard-Aware Path<br>Row: %{y}, Col: %{x}<extra></extra>"
         ))
 
-    # 5. Start (Base Alpha) & Goal (Target Bravo) Markers from Stitch
+    # 5. Start (Base Alpha) & Goal (Target Bravo) Markers
     fig.add_trace(go.Scatter(
         x=[start_coord[1]],
         y=[start_coord[0]],
@@ -514,13 +493,12 @@ with col_map:
         name="Target Bravo"
     ))
 
-    # Layout styling matching Stitch Canvas
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="#070D14",
         plot_bgcolor="#070D14",
         margin=dict(l=10, r=10, t=10, b=10),
-        height=540,
+        height=520,
         xaxis=dict(
             title=dict(text="Column Coordinate (East-West, 10m/cell)", font=dict(color="#859395", size=10)),
             gridcolor="#1E2B3A",
@@ -544,7 +522,7 @@ with col_map:
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig)
 
     # Ticker ribbon from Stitch
     st.markdown("""
@@ -601,7 +579,7 @@ with col_controls:
         </div>
         
         <div style="font-size: 10px; color: #859395; text-transform: uppercase; font-weight: 600; margin-bottom: 6px;">Safety Constraints</div>
-        <div style="background: #070F18; border: 1px solid #1E2B3A; padding: 10px; border-radius: 4px; font-size: 12px; display: flex; flex-col; gap: 6px;">
+        <div style="background: #070F18; border: 1px solid #1E2B3A; padding: 10px; border-radius: 4px; font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
             <div style="color: #64E9B0;">✓ Avoid steep slopes (>15°)</div>
             <div style="color: #3CDAE7;">✓ Avoid rock & boulder fields</div>
             <div style="color: #FFB961;">✓ Maximize continuous sunlight</div>
@@ -614,6 +592,10 @@ with col_controls:
 # 7. BOTTOM RESULTS & INTELLIGENCE PANEL (STITCH COMPARISON CARDS)
 # -----------------------------------------------------------------------------
 st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+
+if not short_res["success"] or not haz_res["success"]:
+    st.error(f"⚠️ NAVIGATION ALERT: {short_res.get('message', '')} {haz_res.get('message', '')}")
+
 col_card_risky, col_card_safe = st.columns(2)
 
 with col_card_risky:
@@ -632,11 +614,11 @@ with col_card_risky:
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Distance</div>
-                <div class="metric-subbox-val text-primary-cyan">{d_short/1000.0:.2f} km</div>
+                <div class="metric-subbox-val text-primary-cyan">{d_short_str}</div>
             </div>
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Est. Travel Time</div>
-                <div class="metric-subbox-val">{t_short_min} min</div>
+                <div class="metric-subbox-val">{t_short_str}</div>
             </div>
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Safety Rating</div>
@@ -668,29 +650,29 @@ with col_card_safe:
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Distance</div>
                 <div class="metric-subbox-val text-secondary-amber">
-                    {d_haz/1000.0:.2f} km <span style="font-size: 11px; color: #FFB961; font-weight: normal;">(+{(d_haz-d_short)/1000.0:+.2f} km)</span>
+                    {d_haz_str} <span style="font-size: 11px; color: #FFB961; font-weight: normal;">{d_delta_str}</span>
                 </div>
             </div>
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Est. Travel Time</div>
-                <div class="metric-subbox-val">{t_haz_min} min</div>
+                <div class="metric-subbox-val">{t_haz_str}</div>
             </div>
             <div class="metric-subbox">
                 <div class="metric-subbox-title">Cost Reduction</div>
-                <div class="metric-subbox-val text-tertiary-mint">-{cost_reduction_pct:.1f}%</div>
+                <div class="metric-subbox-val text-tertiary-mint">{cost_red_str}</div>
             </div>
         </div>
         
         <div style="font-size: 12px; color: #BBC9CB; line-height: 1.45;">
             <b style="color: #64E9B0;">💡 Why this route?</b><br>
-            Bypasses dangerous steep crater walls along a gentle ridge line, reducing total accumulated traversal cost to <b>{c_haz:.1f}</b> (-{cost_reduction_pct:.1f}%). Maintains continuous line of sight.
+            Bypasses dangerous steep crater walls along a gentle ridge line, reducing total accumulated traversal cost to <b>{c_haz:.1f}</b> ({cost_red_str}). Maintains continuous line of sight.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 
 # Status Ribbon from Stitch Screen
-st.markdown(f"""
+st.markdown("""
 <div style="background: #141C26; border: 1px solid #1E2B3A; border-radius: 6px; padding: 12px 18px; margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
     <div style="display: flex; align-items: center; gap: 24px;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -731,44 +713,28 @@ tab_regret, tab_autopsy, tab_lab = st.tabs([
 with tab_regret:
     st.caption("Mathematically correct trade-off formulation with division-by-zero safeguards.")
 
-    s_slopes = [float(terrain["slope"][r, c]) for r, c in short_res["path"]] if short_res["success"] else []
-    h_slopes = [float(terrain["slope"][r, c]) for r, c in haz_res["path"]] if haz_res["success"] else []
-    s_costs = [float(cost_grid[r, c]) for r, c in short_res["path"]] if short_res["success"] else []
-    h_costs = [float(cost_grid[r, c]) for r, c in haz_res["path"]] if haz_res["success"] else []
+    peak_s = f"{max(s_slopes):.1f}°" if s_slopes else "N/A"
+    peak_h = f"{max(h_slopes):.1f}°" if h_slopes else "N/A"
+    delta_peak = f"-{max(s_slopes) - max(h_slopes):.1f}°" if (s_slopes and h_slopes) else "N/A"
 
-    regret_data = [
-        {
-            "Metric": "Geometric Distance",
-            "Shortest Baseline": f"{d_short:.2f} m",
-            "Hazard-Aware Route": f"{d_haz:.2f} m",
-            "Trade-Off (Δ)": f"+{d_haz - d_short:.2f} m (+{overhead_pct:.1f}%)"
-        },
-        {
-            "Metric": "Accumulated Cost",
-            "Shortest Baseline": f"{c_short:.2f}",
-            "Hazard-Aware Route": f"{c_haz:.2f}",
-            "Trade-Off (Δ)": f"-{c_short - c_haz:.2f} (-{cost_reduction_pct:.1f}%)"
-        },
-        {
-            "Metric": "Peak Slope",
-            "Shortest Baseline": f"{max(s_slopes):.1f}°" if s_slopes else "N/A",
-            "Hazard-Aware Route": f"{max(h_slopes):.1f}°" if h_slopes else "N/A",
-            "Trade-Off (Δ)": f"-{max(s_slopes) - max(h_slopes):.1f}°" if s_slopes else "N/A"
-        },
-        {
-            "Metric": "Mean Traversal Cost",
-            "Shortest Baseline": f"{np.mean(s_costs):.2f}" if s_costs else "N/A",
-            "Hazard-Aware Route": f"{np.mean(h_costs):.2f}" if h_costs else "N/A",
-            "Trade-Off (Δ)": f"-{np.mean(s_costs) - np.mean(h_costs):.2f}" if s_costs else "N/A"
-        },
-        {
-            "Metric": "Waypoints Count",
-            "Shortest Baseline": len(short_res["path"]),
-            "Hazard-Aware Route": len(haz_res["path"]),
-            "Trade-Off (Δ)": f"{len(haz_res['path']) - len(short_res['path']):+d}"
-        }
-    ]
-    st.table(regret_data)
+    mean_s = f"{np.mean(s_costs):.2f}" if s_costs else "N/A"
+    mean_h = f"{np.mean(h_costs):.2f}" if h_costs else "N/A"
+    delta_mean = f"-{np.mean(s_costs) - np.mean(h_costs):.2f}" if (s_costs and h_costs) else "N/A"
+
+    count_s = str(len(short_res["path"])) if short_res["success"] else "0"
+    count_h = str(len(haz_res["path"])) if haz_res["success"] else "0"
+    delta_count = f"{len(haz_res['path']) - len(short_res['path']):+d}" if (short_res["success"] and haz_res["success"]) else "N/A"
+
+    # Clean, foolproof Markdown table rendering (never triggers PyArrow type errors)
+    st.markdown(f"""
+| Metric | Shortest Baseline | Hazard-Aware Route | Trade-Off (Δ) |
+| :--- | :--- | :--- | :--- |
+| **Geometric Distance** | `{d_short:.2f} m` | `{d_haz:.2f} m` | `+{d_haz - d_short:.2f} m (+{overhead_pct:.1f}%)` |
+| **Accumulated Cost** | `{c_short:.2f}` | `{c_haz:.2f}` | `-{c_short - c_haz:.2f} (-{cost_reduction_pct:.1f}%)` |
+| **Peak Slope** | `{peak_s}` | `{peak_h}` | `{delta_peak}` |
+| **Mean Traversal Cost** | `{mean_s}` | `{mean_h}` | `{delta_mean}` |
+| **Waypoints Count** | `{count_s}` | `{count_h}` | `{delta_count}` |
+""")
 
 with tab_autopsy:
     st.caption("Granular step-by-step cost breakdown along both trajectories.")
@@ -796,7 +762,7 @@ with tab_autopsy:
             yaxis=dict(title="Unit Traversal Cost", gridcolor="#1E2B3A"),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0.5, xanchor="center", font=dict(size=9))
         )
-        st.plotly_chart(autopsy_fig, use_container_width=True)
+        st.plotly_chart(autopsy_fig)
     else:
         st.info("Route autopsy data unavailable when paths are blocked.")
 
@@ -822,6 +788,8 @@ with tab_lab:
             orig_set = set(haz_res["path"])
             lab_set = set(lab_res["path"])
             st.metric("Divergent Coordinates", f"{len(orig_set.symmetric_difference(lab_set))} cells")
+        else:
+            st.warning("What-If configuration resulted in an unnavigable path.")
 
 
 # -----------------------------------------------------------------------------
