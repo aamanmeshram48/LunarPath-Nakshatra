@@ -14,7 +14,6 @@ This application is NOT flight-qualified rover navigation software.
 from typing import Dict, Any, Tuple, List, Optional
 import math
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -592,37 +591,39 @@ with col_regret:
     st.markdown("### 📊 DIFFERENTIATOR: ROUTE REGRET MATRIX")
     st.caption("Mathematically correct trade-off formulation with division-by-zero safeguards.")
 
-    regret_df = pd.DataFrame({
-        "Metric": [
-            "Geometric Distance",
-            "Accumulated Cost",
-            "Peak Slope",
-            "Mean Traversal Cost",
-            "Waypoints Count"
-        ],
-        "Shortest Baseline": [
-            f"{d_short:.2f} m",
-            f"{c_short:.2f}",
-            f"{max(s_slopes):.1f}°" if (short_res['success'] and s_slopes) else "N/A",
-            f"{np.mean(s_costs):.2f}" if (short_res['success'] and s_costs) else "N/A",
-            len(short_res["path"])
-        ],
-        "Hazard-Aware Route": [
-            f"{d_haz:.2f} m",
-            f"{c_haz:.2f}",
-            f"{max(h_slopes):.1f}°" if (haz_res['success'] and h_slopes) else "N/A",
-            f"{np.mean(h_costs):.2f}" if (haz_res['success'] and h_costs) else "N/A",
-            len(haz_res["path"])
-        ],
-        "Trade-Off (Δ)": [
-            f"+{d_haz - d_short:.2f} m (+{overhead_pct:.1f}%)",
-            f"-{c_short - c_haz:.2f} (-{cost_reduction_pct:.1f}%)",
-            f"-{max(s_slopes) - max(h_slopes):.1f}°" if (short_res['success'] and s_slopes) else "N/A",
-            f"-{np.mean(s_costs) - np.mean(h_costs):.2f}" if (short_res['success'] and s_costs) else "N/A",
-            f"{len(haz_res['path']) - len(short_res['path']):+d}"
-        ]
-    })
-    st.table(regret_df)
+    regret_data = [
+        {
+            "Metric": "Geometric Distance",
+            "Shortest Baseline": f"{d_short:.2f} m",
+            "Hazard-Aware Route": f"{d_haz:.2f} m",
+            "Trade-Off (Δ)": f"+{d_haz - d_short:.2f} m (+{overhead_pct:.1f}%)"
+        },
+        {
+            "Metric": "Accumulated Cost",
+            "Shortest Baseline": f"{c_short:.2f}",
+            "Hazard-Aware Route": f"{c_haz:.2f}",
+            "Trade-Off (Δ)": f"-{c_short - c_haz:.2f} (-{cost_reduction_pct:.1f}%)"
+        },
+        {
+            "Metric": "Peak Slope",
+            "Shortest Baseline": f"{max(s_slopes):.1f}°" if (short_res['success'] and s_slopes) else "N/A",
+            "Hazard-Aware Route": f"{max(h_slopes):.1f}°" if (haz_res['success'] and h_slopes) else "N/A",
+            "Trade-Off (Δ)": f"-{max(s_slopes) - max(h_slopes):.1f}°" if (short_res['success'] and s_slopes) else "N/A"
+        },
+        {
+            "Metric": "Mean Traversal Cost",
+            "Shortest Baseline": f"{np.mean(s_costs):.2f}" if (short_res['success'] and s_costs) else "N/A",
+            "Hazard-Aware Route": f"{np.mean(h_costs):.2f}" if (haz_res['success'] and h_costs) else "N/A",
+            "Trade-Off (Δ)": f"-{np.mean(s_costs) - np.mean(h_costs):.2f}" if (short_res['success'] and s_costs) else "N/A"
+        },
+        {
+            "Metric": "Waypoints Count",
+            "Shortest Baseline": len(short_res["path"]),
+            "Hazard-Aware Route": len(haz_res["path"]),
+            "Trade-Off (Δ)": f"{len(haz_res['path']) - len(short_res['path']):+d}"
+        }
+    ]
+    st.table(regret_data)
 
 with col_autopsy:
     st.markdown("### 🔬 DIFFERENTIATOR: ROUTE AUTOPSY")
